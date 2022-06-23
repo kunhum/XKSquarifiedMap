@@ -70,7 +70,10 @@ public class XKSquarifiedMap: NSObject {
         
         guard let lastRect = rects.last else { return }
         // 新建
-        if ceil(lastRect.frame.maxX) == ceil(containerSize.width) {
+        let zoomWidth = ceil(containerSize.width) - ceil(lastRect.frame.maxX)
+        let zoomHeight = ceil(containerSize.height) - ceil(lastRect.frame.maxY)
+        // 新建 ceil(lastRect.frame.maxX) == ceil(containerSize.width)
+        if zoomHeight > zoomWidth {
             valueX = lastRect.father?.frame.origin.x ?? lastRect.frame.minX
             valueY = lastRect.frame.maxY
             // 向下新建
