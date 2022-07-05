@@ -1,5 +1,5 @@
 //
-//  TZYKSquarifiedMap.swift
+//  XKSquarifiedMap.swift
 //  Demos
 //
 //  Created by kenneth on 2022/6/16.
@@ -188,19 +188,7 @@ public class XKSquarifiedMap: NSObject {
             self?.drawSize = CGSize(width: zoomWidth, height: zoomHeight)
         }
         
-        if isFirst {
-            
-            if fatherMaxX == viewWidth {
-                zoomWidth = viewWidth - fatherMinX
-            }
-            if fatherMaxY == viewHeight {
-                zoomHeight = viewHeight - fatherMinY
-            }
-            updateZoomSizeClosure()
-            return
-        }
-        
-        guard isNew == false else {
+        if isFirst || isNew {
             
             if fatherMaxX == viewWidth {
                 zoomWidth = viewWidth - fatherMinX
