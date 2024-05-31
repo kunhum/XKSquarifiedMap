@@ -13,56 +13,89 @@ import XKSquarifiedMap
 
 class ViewController: UIViewController {
 
-    let values = [6.0, 6.0, 4.0, 3.0, 2.0, 2.0, 1.0]
+    lazy var values: [Double] = [477985157, 367307473, 350472264, 216917349, 216427129, 205720723, 189556783, 157510547, 149931421, 145997978, 138368184, 122888219, 119277147, 115591424, 112695066, 111294088, 106461399, 105396682, 100222370, 97950881].prefix(20).map { $0 }
     
-    let container = UIView()
+    lazy var treeMap: XKTreeMap = {
+        let treeMap = XKTreeMap()
+        treeMap.dataSource = self
+        treeMap.delegate = self
+        treeMap.register(cellWithClass: Cell.self)
+        
+        return treeMap
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
     
         view.backgroundColor = .white
-        
-        view.addSubview(container)
-        container.snp.makeConstraints { make in
-            make.top.equalTo(100.0)
-            make.left.right.equalToSuperview()
-            make.height.equalTo(container.snp.width).dividedBy(6.0/4.0)
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now()) {
-            self.createSubviews()
-        }
-        
-    }
-
-    func createSubviews() {
-        
-        let frames = XKSquarifiedMap.fetchRects(values: values, containerSize: container.frame.size)
-        
-        for (i, frame) in frames.enumerated() {
-            
-            let subView = UIView()
-            subView.backgroundColor = UIColor.random
-            subView.frame = frame
-            let textLabel = UILabel()
-            textLabel.textColor = .black
-            textLabel.textAlignment = .center
-            textLabel.numberOfLines = 0
-            textLabel.text = "\(i)\n \(values[i])"
-            container.addSubview(subView)
-            subView.addSubview(textLabel)
-            textLabel.snp.makeConstraints { make in
-                make.center.equalToSuperview()
-            }
+        treeMap.backgroundColor = .white
+        view.addSubview(treeMap)
+        treeMap.snp.makeConstraints { make in
+            make.left.equalTo(16)
+            make.centerX.equalToSuperview()
+            make.height.equalTo(252.0)
+            make.top.equalTo(100)
         }
         
     }
     
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        treeMap.treeValues = values
     }
+
+//    func createSubviews() {
+//        
+//        let frames = XKSquarifiedMap.fetchRects(values: values, containerSize: container.frame.size)
+//        
+//        for (i, frame) in frames.enumerated() {
+//            
+//            let subView = UIView()
+//            subView.backgroundColor = UIColor.random
+//            subView.frame = frame
+//            let textLabel = UILabel()
+//            textLabel.textColor = .black
+//            textLabel.textAlignment = .center
+//            textLabel.numberOfLines = 0
+//            textLabel.text = "\(i)\n \(values[i])"
+//            container.addSubview(subView)
+//            subView.addSubview(textLabel)
+//            textLabel.snp.makeConstraints { make in
+//                make.center.equalToSuperview()
+//            }
+//        }
+//        
+//    }
+    
 
 }
 
+extension ViewController: UICollectionViewDataSource, UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return values.count
+    }
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell: Cell = collectionView.dequeueReusableCell(withClass: Cell.self, for: indexPath)
+        cell.contentView.backgroundColor = .random
+        cell.textLabel.text = "\(indexPath.item)"
+        return cell
+    }
+}
+
+class Cell: UICollectionViewCell {
+    lazy var textLabel: UILabel = UILabel()
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        contentView.addSubview(textLabel)
+        textLabel.snp.makeConstraints { make in
+            make.center.equalToSuperview()
+        }
+        textLabel.font = .systemFont(ofSize: 12)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}

@@ -1,242 +1,188 @@
 //
-//  XKSquarifiedMap.swift
-//  Demos
-//
 //  Created by kenneth on 2022/6/16.
 //
 
 import UIKit
+import SwifterSwift
 
 public class XKSquarifiedMap: NSObject {
     
     public var values: [Double] = []
     fileprivate var containerSize: CGSize = .zero
-    /// 当前绘制空间尺寸
-    fileprivate var drawSize: CGSize = .zero
     fileprivate var rects: [Rect] = []
     
     class Rect: Equatable {
-        var area: CGFloat = 0.0
+        var area: Double = 0.0
         var frame: CGRect = .zero
         var value: Double = 0.0
-        weak var father: Rect?
-        var isHor: Bool?
+        var isHor: Bool = false
         
         static func == (lhs: XKSquarifiedMap.Rect, rhs: XKSquarifiedMap.Rect) -> Bool {
             return lhs.area == rhs.area && lhs.frame == rhs.frame && lhs.value == rhs.value
         }
     }
     
-    func createRect(index: Int, total: Double, area: CGFloat)  {
+    func createRects() {
         
-        guard index < values.count else { return }
-        guard index == rects.count else { return }
+        rects.removeAll()
+        /// 同一空间内的Rect
+        var zoomRects: [Rect] = []
+        
+        let viewArea = containerSize.width * containerSize.height
+        
+        let sum = values.sum()
         
         // 靠短边摆放
-        let curValue   = values[index]
-        let valueArea  = ceil(curValue / total * area)
-        let viewWidth  = containerSize.width
-        let viewHeight = containerSize.height
+        var drawWidth = containerSize.width
+        var drawHeight = containerSize.height
         
-        let drawWidth  = drawSize.width
-        let drawHeight = drawSize.height
-        var valueX     = viewWidth - drawWidth
-        var valueY     = viewHeight - drawHeight
+        var valueWidth = drawWidth
+        var valueHeight = drawHeight
         
-        var valueWidth  = 0.0
-        var valueHeight = 0.0
-        var valueRatio  = 0.0
+        var zoomWidth = drawWidth
+        var zoomHeight = drawHeight
         
-        let valueRect = Rect()
-        valueRect.area = valueArea
-        valueRect.value = curValue
-        valueRect.father = valueRect
+        var isHorDraw = containerSize.width > containerSize.height
         
-        let calsulateValueSizeClosure = {
-            if drawWidth > drawHeight {
+        let updateDirectionClosure = {
+            isHorDraw = drawWidth > drawHeight
+        }
+        
+        for (i, value) in values.enumerated() {
+                        
+            let valueArea = value / sum * viewArea
+            
+            let newRect = Rect()
+            newRect.area = valueArea
+            newRect.value = value
+            
+            // --- 新增情况计算
+            if isHorDraw {
                 valueHeight = drawHeight
                 valueWidth = valueArea / valueHeight
             } else {
                 valueWidth = drawWidth
                 valueHeight = valueArea / valueWidth
             }
-        }
-        let setRectFrameClosure = {
-            valueRect.frame = CGRect(x: valueX, y: valueY, width: valueWidth, height: valueHeight)
-        }
-        let calculateRatioClosure = {
-            valueRatio = max(valueWidth/valueHeight, valueHeight/valueWidth)
-        }
-        
-        calsulateValueSizeClosure()
-        guard index > 0 else {
-            setRectFrameClosure()
-            appendRect(valueRect, isFirst: true, isNew: true)
-            return
-        }
-        
-        guard let lastRect = rects.last else { return }
-        
-        // 新增
-        calsulateValueSizeClosure()
-        calculateRatioClosure()
-        
-        // 放到同一区域
-        let zoomRects = rects.filter { rect in
-            return rect.father == lastRect.father
-        }
-        let zoomArea = zoomRects.reduce(0) { partialResult, rect in
-            return partialResult + rect.area
-        } + valueArea
-        // 水平插入还是垂直插入
-        let isHor = lastRect.frame.maxX == viewWidth
-        
-        var zoomWidth  = 0.0
-        var zoomHeight = 0.0
-        
-        if isHor {
-            zoomWidth = valueArea / zoomArea * drawWidth
-            zoomHeight = valueArea / zoomWidth
-        } else {
-            zoomHeight = valueArea / zoomArea * drawHeight
-            zoomWidth = valueArea / zoomHeight
-        }
-        
-        let zoomRatio = max(zoomWidth/zoomHeight, zoomHeight/zoomWidth)
-        
-        guard zoomRatio <= valueRatio else {
-            // 新增比较合适
-            setRectFrameClosure()
-            appendRect(valueRect, isFirst: false, isNew: true)
-            return
-        }
-        
-        // 插入比较合适
-        lastRect.father?.isHor = isHor
-        valueRect.father = lastRect.father
-        
-        let zoomRectWidthSum = zoomRects.reduce(0) { partialResult, rect in
-            return partialResult + rect.frame.width
-        }
-        let zoomRectHeightSum = zoomRects.reduce(0) { partialResult, rect in
-            return partialResult + rect.frame.height
-        }
-        
-        // 更新同一区域的frame
-        for (i, zoomRect) in zoomRects.enumerated() {
-            
-            var rectX: CGFloat = 0.0
-            var rectY: CGFloat = 0.0
-            var rectWidth = 0.0
-            var rectHeight = 0.0
-            
-            if isHor {
-                rectWidth = zoomRect.area / zoomArea * zoomRectWidthSum
-                rectHeight = zoomRect.area / rectWidth
-            } else {
-                rectHeight = zoomRect.area / zoomArea * zoomRectHeightSum
-                rectWidth = zoomRect.area / rectHeight
-            }
-            
-            let updataZoomFrameClosure = {
-                zoomRect.frame = CGRect(x: rectX, y: rectY, width: rectWidth, height: rectHeight)
-            }
             
             guard i > 0 else {
-                rectX = zoomRect.frame.minX
-                rectY = zoomRect.frame.minY
-                updataZoomFrameClosure()
+                newRect.frame = CGRect(x: 0, y: 0, width: valueWidth, height: valueHeight)
+                if isHorDraw {
+                    drawWidth = containerSize.width - valueWidth
+                } else {
+                    drawHeight = containerSize.height - valueHeight
+                }
+                newRect.isHor = valueWidth > valueHeight
+                rects.append(newRect)
+                zoomRects.append(newRect)
+                updateDirectionClosure()
                 continue
             }
             
-            // 其实是一定有值的
-            guard i-1 < zoomRects.count else { continue }
-            let zoomLastRect = zoomRects[i-1]
+            // --- 插入的情况计算
+            let isHorInsert: Bool = zoomRects.last?.isHor ?? false
             
-            rectX = isHor ? zoomLastRect.frame.maxX : zoomLastRect.frame.minX
-            rectY = isHor ? zoomLastRect.frame.minY : zoomLastRect.frame.maxY
-            updataZoomFrameClosure()
+            let zoomArea = zoomRects.map { $0.area }.sum() + valueArea
+            var zoomTotalHeight = 0.0
+            var zoomTotalWidth = 0.0
+            
+            if isHorInsert {
+                zoomTotalWidth = zoomRects.map({ $0.frame.width }).sum()
+                zoomTotalHeight = zoomArea / zoomTotalWidth
+                zoomHeight = zoomTotalHeight
+                zoomWidth = valueArea / zoomHeight
+                
+            } else {
+                zoomTotalHeight = zoomRects.map({ $0.frame.height }).sum()
+                zoomTotalWidth = zoomArea / zoomTotalHeight
+                zoomWidth = zoomTotalWidth
+                zoomHeight = valueArea / zoomWidth
+            }
+            
+            // 计算同一空间内的ratio
+            let zoomRatio = max(zoomWidth/zoomHeight, zoomHeight/zoomWidth)
+            // 计算新增ratio
+            let valueRatio = max(valueWidth/valueHeight, valueHeight/valueWidth)
+                        
+            // 是否应该插入
+            let shouldInsert = zoomRatio < valueRatio
+            
+            guard shouldInsert else {
+                // 新增
+                
+                newRect.frame = CGRect(x: containerSize.width - drawWidth, y: containerSize.height - drawHeight, width: valueWidth, height: valueHeight)
+                newRect.isHor = valueWidth > valueHeight
+                rects.append(newRect)
+                zoomRects.removeAll()
+                zoomRects.append(newRect)
+                
+                if isHorDraw {
+                    drawWidth = containerSize.width - newRect.frame.maxX
+                } else {
+                    drawHeight = containerSize.height - newRect.frame.maxY
+                }
+                
+                updateDirectionClosure()
+                
+                continue
+            }
+            
+            zoomRects.append(newRect)
+            
+            var updateX = 0.0
+            var updateY = 0.0
+            var updateWidth = 0.0
+            var updateHeight = 0.0
+            
+            // 更新同一空间内的坐标
+            for (i, rect) in zoomRects.enumerated() {
+                                
+                let lastRect = zoomRects[safe: i-1]
+                
+                if isHorInsert {
+                    updateHeight = zoomTotalHeight
+                    updateWidth = rect.area / updateHeight
+                } else {
+                    updateWidth = zoomTotalWidth
+                    updateHeight = rect.area / updateWidth
+                }
+                
+                if i == 0 {
+                    updateX = rect.frame.origin.x
+                    updateY = rect.frame.origin.y
+                } else {
+                    updateX = isHorInsert ? (lastRect?.frame.maxX ?? 0.0) : (lastRect?.frame.minX ?? 0.0)
+                    updateY = isHorInsert ? (lastRect?.frame.minY ?? 0.0) : (lastRect?.frame.maxY ?? 0.0)
+                }
+                
+                rect.frame = CGRect(x: updateX, y: updateY, width: updateWidth, height: updateHeight)
+            }
+            
+            newRect.isHor = zoomRects.first?.isHor ?? false
+            
+            if isHorInsert {
+                drawHeight = containerSize.height - (zoomRects.last?.frame.maxY ?? 0.0)
+            } else {
+                drawWidth = containerSize.width - (zoomRects.last?.frame.maxX ?? 0.0)
+            }
+            updateDirectionClosure()
+            rects.append(newRect)
+            
         }
         
-        let zoomX = isHor ? lastRect.frame.maxX : lastRect.frame.minX
-        let zoomY = isHor ? lastRect.frame.minY : lastRect.frame.maxY
-        
-        valueX = zoomX
-        valueY = zoomY
-        valueWidth = zoomWidth
-        valueHeight = zoomHeight
-        setRectFrameClosure()
-        appendRect(valueRect, isFirst: false, isNew: false)
     }
     
-    func appendRect(_ rect: Rect, isFirst: Bool, isNew: Bool) {
-        print(rect.frame)
-        rects.append(rect)
-        
-        let viewWidth = containerSize.width
-        let viewHeight = containerSize.height
-        
-        let fatherMaxX = rect.father?.frame.maxX ?? 0.0
-        let fatherMaxY = rect.father?.frame.maxY ?? 0.0
-        let fatherMinX = rect.father?.frame.minX ?? 0.0
-        let fatherMinY = rect.father?.frame.minY ?? 0.0
-        
-        var zoomWidth = viewWidth - fatherMaxX
-        var zoomHeight = viewHeight - fatherMaxY
-        
-        let updateZoomSizeClosure = { [weak self] in
-            self?.drawSize = CGSize(width: zoomWidth, height: zoomHeight)
-        }
-        
-        if isFirst || isNew {
-            
-            if fatherMaxX == viewWidth {
-                zoomWidth = viewWidth - fatherMinX
-            }
-            if fatherMaxY == viewHeight {
-                zoomHeight = viewHeight - fatherMinY
-            }
-            updateZoomSizeClosure()
-            return
-        }
-        
-        guard let isHor = rect.father?.isHor else {
-            updateZoomSizeClosure()
-            return
-        }
-        
-        if isHor {
-            zoomHeight = viewHeight - fatherMaxY
-            zoomWidth = viewWidth - fatherMinX
-        } else {
-            zoomWidth = viewWidth - fatherMaxX
-            zoomHeight = viewHeight - fatherMinY
-        }
-        
-        updateZoomSizeClosure()
-    }
-
 }
 
 public extension XKSquarifiedMap {
     
     static func fetchRects(values: [Double], containerSize: CGSize) -> [CGRect] {
         let map = XKSquarifiedMap()
-        map.rects.removeAll()
-        let values = values.sorted { value1, value2 in
-            return value1 >= value2
-        }.map { ceil($0) }
-        let size = CGSize(width: ceil(containerSize.width), height: ceil(containerSize.height))
+        let values = values.sorted(by: { $0 > $1 })
+        let size = containerSize
         map.values = values
         map.containerSize = size
-        map.drawSize = size
-        let area = size.width * size.height
-        let total = values.reduce(into: 0, +=)
-        for (i, _) in values.enumerated() {
-            map.createRect(index: i, total: total, area: area)
-        }
-        return map.rects.map { rect -> CGRect in
-            return rect.frame
-        }
+        map.createRects()
+        return map.rects.map { $0.frame }
     }
 }
